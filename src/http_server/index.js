@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as http from 'http';
 import { WebSocketServer } from 'ws';
 import reg from '../modules/reg.js';
-import {getAloneRoom, getWinners, createRoom} from '../modules/module.js'
+import {getAloneRoom, getWinners, createRoom, addUser, create_game} from '../modules/module.js'
 
 export const httpServer = http.createServer(function (req, res) {
     const __dirname = path.resolve(path.dirname(''));
@@ -30,6 +30,7 @@ const ws = new WebSocketServer({port: 3000});
 ws.on('connection', (ws, req)   => {
     console.log(` new connect` );
     let user = '';
+    
 
     ws.on("message", (message)=> {
         try{
@@ -47,12 +48,26 @@ ws.on('connection', (ws, req)   => {
                 break;
             };
             case 'create_room': {
-                createRoom(rooms,user);
-                console.log(rooms);
                 
+                
+                createRoom(rooms,user, [...playerBD.keys()].indexOf(user));
+                
+
+                create_game(ws,rooms.keys().next().value,[...playerBD.keys()].indexOf(user));
                 getAloneRoom(rooms,ws);
+                break;
 
             }
+            case 'add_user_to_room': {
+            
+                const {indexRoom} = JSON.parse(parsed.data);
+               const a = addUser(rooms,user,indexRoom, [...playerBD.keys()].indexOf(user));
+                rooms.set(indexRoom,a);
+                 create_game(ws,rooms.keys().next().value,[...playerBD.keys()].indexOf(user));
+                getAloneRoom(rooms,ws);
+                break;
+            }
+               
             default: {
                 ws.send(JSON.stringify({
                     type: 'error',
