@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as http from 'http';
 import { WebSocketServer } from 'ws';
 import reg from '../modules/reg.js';
-import {getAloneRoom, getWinners, createRoom, addUser, create_game} from '../modules/module.js'
+import {getAloneRoom, getWinners, createRoom, addUser, create_game, turn} from '../modules/module.js'
 
 export const httpServer = http.createServer(function (req, res) {
     const __dirname = path.resolve(path.dirname(''));
@@ -23,9 +23,10 @@ export const httpServer = http.createServer(function (req, res) {
 const playerBD = new Map();
 const rooms = new Map();
 const winers = new Map();
+const games = new Map();
 
 const ws = new WebSocketServer({port: 3000});
-
+const clients = ws.clients;
 
 ws.on('connection', (ws, req)   => {
     console.log(` new connect` );
@@ -36,25 +37,23 @@ ws.on('connection', (ws, req)   => {
         try{
             const parsed = JSON.parse(message.toString());
             console.log(parsed);
-            
            switch (parsed.type){
             case 'reg': {
                 reg(parsed,ws,playerBD);
                 user = JSON.parse(parsed.data).name;
-                
-                getAloneRoom(rooms,ws);
-                getWinners(winers,ws);
+                getAloneRoom(rooms,clients);
+                getWinners(winers,clients);
                 
                 break;
             };
             case 'create_room': {
                 
                 
-                createRoom(rooms,user, [...playerBD.keys()].indexOf(user));
+                createRoom(rooms,user, [...playerBD.keys()].indexOf(user), games);
                 
 
                 create_game(ws,rooms.keys().next().value,[...playerBD.keys()].indexOf(user));
-                getAloneRoom(rooms,ws);
+                getAloneRoom(rooms,clients);
                 break;
 
             }
@@ -62,10 +61,35 @@ ws.on('connection', (ws, req)   => {
             
                 const {indexRoom} = JSON.parse(parsed.data);
                const a = addUser(rooms,user,indexRoom, [...playerBD.keys()].indexOf(user));
+               if(a === null) break; 
                 rooms.set(indexRoom,a);
                  create_game(ws,rooms.keys().next().value,[...playerBD.keys()].indexOf(user));
-                getAloneRoom(rooms,ws);
+                getAloneRoom(rooms,clients);
                 break;
+            }
+            case 'add_ships': {
+                const {indexPlayer, ships, gameId} = JSON.parse(parsed.data);
+                const game = games.get(gameId);
+                game.players.push({indexPlayer, ships});
+                games.set(gameId,game);
+                
+                if(game.players.length === 2){
+                    clients.forEach(element => element.send(JSON.stringify({
+                        type: 'start_game',
+                        data: JSON.stringify({
+                            ships: ships,
+                            currentPlayerIndex: indexPlayer,
+                        }),
+                        id: 0,
+                    })))
+                    turn(clients,indexPlayer);
+                }
+                
+                
+                break;
+            }
+            case 'turn': {
+               
             }
                
             default: {

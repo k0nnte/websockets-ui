@@ -2,33 +2,46 @@ import { json } from "stream/consumers";
 
 
 
-export  function getAloneRoom(rooms,ws){
+export  function getAloneRoom(rooms,clinets){
     
     const roomlist = [...rooms.entries()].filter(([_,room])=> room.user.length === 1).map(([roomId,room])=> ({
         roomId,
         roomUsers: room.user
     }))
     
-   return ws.send(JSON.stringify({
+   clinets.forEach(element => {
+       element.send(JSON.stringify({
         type: 'update_room',
         data: JSON.stringify(roomlist),
         id: 0,
     }))
+        
+     });
 }
 
-export function getWinners(winners,ws) {
+export function getWinners(winners,clinets) {
     const winns =  [...winners.entries()]
         .map(([name, wins]) => ({ name, wins }));
 
-    return ws.send(JSON.stringify({
-        type: 'update_winners',
-        data: JSON.stringify(winns),
-        data: 0,
-    }))
+    return clinets.forEach(element => {
+       element.send(JSON.stringify({
+           type: 'update_winners',
+           data: JSON.stringify(winns),
+           id: 0,
+       }))
+        
+     });
+
+    // return ws.send(JSON.stringify({
+    //     type: 'update_winners',
+    //     data: JSON.stringify(winns),
+    //     id: 0,
+    // }))
+    
 }
 
 
-export function createRoom(rooms,userr,index){
+export function createRoom(rooms,userr,index, games){
     const roomId = Date.now().toString();
     const newRoom = {
         user: [{
@@ -36,12 +49,17 @@ export function createRoom(rooms,userr,index){
             index : index,
         }]
     }
-    return  rooms.set(roomId,newRoom);
+    const newGame = {
+        idGame: roomId,
+        players: [],
+    }
+    return ( rooms.set(roomId,newRoom), games.set(roomId,newGame));
 }
 
 export function addUser(rooms,user,roomId, userId){
         
     const room = rooms.get(roomId);
+    if(room.user.filter(({name})=> name === user).length) return null;
       room.user.push({
         name: user,
         index : userId,
@@ -52,7 +70,8 @@ export function addUser(rooms,user,roomId, userId){
 
 export function create_game(ws,roomId,userId){
     
-    return ws.send(JSON.stringify({
+
+   return ws.send(JSON.stringify({
         type: 'create_game',
         data: JSON.stringify({
             idGame:  roomId,
@@ -62,6 +81,18 @@ export function create_game(ws,roomId,userId){
         id: 0,
     }))
 
+}
+
+export function turn(clinet,idplayer){
+    return clinet.forEach(element => {
+        element.send(JSON.stringify({
+        type: 'turn',
+        data: JSON.stringify({
+            currentPlayer: idplayer,
+        }),
+        id: 0,
+    }))
+    })
 }
 
 
