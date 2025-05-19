@@ -36,7 +36,6 @@ ws.on('connection', (ws, req)   => {
     ws.on("message", (message)=> {
         try{
             const parsed = JSON.parse(message.toString());
-            console.log(parsed);
            switch (parsed.type){
             case 'reg': {
                 reg(parsed,ws,playerBD);
@@ -116,6 +115,35 @@ ws.on('connection', (ws, req)   => {
             }))
         }
     })
-    
-})
+    ws.on('close', () => {
+        console.log(` user ${user} disconnect` );
+         for (const [gameId, game] of games.entries()) {
+            if (game.players && Array.isArray(game.players)) {
+                game.players = game.players.filter(p => p.indexPlayer !== [...playerBD.keys()].indexOf(user));
+                if (game.players.length === 0) {
+                    games.delete(gameId);
+                } else {
+                    games.set(gameId, game);
+                }
+            }
+            
+        }
+        playerBD.delete(user);
+        for (const [roomId, room] of rooms.entries()) {
+            if (room.user && Array.isArray(room.user)) {
+                room.user = room.user.filter(u => u.name !== user);
+                if (room.user.length === 0) {
+                    rooms.delete(roomId);
+                } else {
+                    rooms.set(roomId, room);
+                }
+            }
+            
+            
+        }
+       
+    });
+
+});
+
 console.log('WebSocket listen on localhost:3000');
